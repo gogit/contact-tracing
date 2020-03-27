@@ -15,27 +15,30 @@ import java.util.Optional;
 public class UserServiceImpl implements UserService {
 
     @Autowired
-    UserRepository repository;
+    UserRepository repository1;
+
+    @Autowired
+    UserRepositoryImpl repository2;
 
     @Override
     public User save(final User user) {
-        return repository.save(user);
+        return repository1.save(user);
     }
     @Override
     public Optional<User> findByMobile(final String mobile) {
-        List<User> l =repository.findByMobile(mobile);
+        List<User> l = repository1.findByMobile(mobile);
         return l.isEmpty()?Optional.empty():Optional.of(l.get(0));
     }
 
     @Override
     public Optional<User> findByValidationCode(String validationCode) {
-        List<User> l =repository.findByValidationCode(validationCode);
+        List<User> l = repository1.findByValidationCode(validationCode);
         return l.isEmpty()?Optional.empty():Optional.of(l.get(0));
     }
 
     @Override
     public Optional<User> findByValidationCodeHash(String validationCodeHash) {
-        List<User> l =repository.findByValidationCodeHash(validationCodeHash);
+        List<User> l = repository1.findByValidationCodeHash(validationCodeHash);
         return l.isEmpty()?Optional.empty():Optional.of(l.get(0));
     }
 
@@ -50,7 +53,7 @@ public class UserServiceImpl implements UserService {
                     user.associate(usern.get());
                 }
             }
-            repository.save(user);
+            repository1.save(user);
         }
     }
 
@@ -63,8 +66,19 @@ public class UserServiceImpl implements UserService {
         return Collections.emptyList();
     }
 
+
     @Override
     public List<User> findContactsByValidationCode(String validationCode) {
+        Optional<User> user = findByValidationCode(validationCode);
+        if (user.isPresent()) {
+            return repository2.findContactTrace(user.get().getId());
+        }
+        return Collections.emptyList();
+    }
+
+
+    //@Override
+    public List<User> findContactsByValidationCode1(String validationCode) {
         Map<String, User> userMap = new HashMap<>();
         Optional<User> user = findByValidationCode(validationCode);
         if (user.isPresent()) {
