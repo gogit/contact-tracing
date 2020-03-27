@@ -1,6 +1,7 @@
 package com.thinktag.user.service;
 
 import com.thinktag.user.model.User;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -8,63 +9,48 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Optional;
-
-import static java.util.Optional.ofNullable;
 
 @Service
 public class UserServiceImpl implements UserService {
 
-    Map<String, User> users = new HashMap<>();
+    @Autowired
+    UserRepository repository;
 
     @Override
     public User save(final User user) {
-        return users.put(user.getId(), user);
+        return repository.save(user);
     }
-
-    @Override
-    public Optional<User> find(final String id) {
-        return ofNullable(users.get(id));
-    }
-
     @Override
     public Optional<User> findByMobile(final String mobile) {
-        return users
-                .values()
-                .stream()
-                .filter(u -> Objects.equals(mobile, u.getMobile()))
-                .findFirst();
+        List<User> l =repository.findByMobile(mobile);
+        return l.isEmpty()?Optional.empty():Optional.of(l.get(0));
     }
 
     @Override
     public Optional<User> findByValidationCode(String validationCode) {
-        return users
-                .values()
-                .stream()
-                .filter(u -> Objects.equals(validationCode, u.getValidationCode()))
-                .findFirst();
+        List<User> l =repository.findByValidationCode(validationCode);
+        return l.isEmpty()?Optional.empty():Optional.of(l.get(0));
     }
 
     @Override
     public Optional<User> findByValidationCodeHash(String validationCodeHash) {
-        return users
-                .values()
-                .stream()
-                .filter(u -> Objects.equals(validationCodeHash, u.getValidationCodeHash()))
-                .findFirst();
+        List<User> l =repository.findByValidationCodeHash(validationCodeHash);
+        return l.isEmpty()?Optional.empty():Optional.of(l.get(0));
     }
 
     @Override
     public void saveAssociation(String validationCode, String... validationCodeHash) {
-        Optional<User> user = findByValidationCode(validationCode);
-        if(user.isPresent()){
+        Optional<User> ouser = findByValidationCode(validationCode);
+        if(ouser.isPresent()){
+            User user = ouser.get();
             for(String vc: validationCodeHash){
                 Optional<User> usern = findByValidationCodeHash(vc);
                 if(usern.isPresent()) {
-                    user.get().associate(usern.get());
+                    user.associate(usern.get());
                 }
             }
+            repository.save(user);
         }
     }
 
@@ -86,6 +72,7 @@ public class UserServiceImpl implements UserService {
                 recurse(u, userMap);
             }
         }
+        userMap.remove(user.get().getMobile());
         return new ArrayList<>(userMap.values());
     }
 

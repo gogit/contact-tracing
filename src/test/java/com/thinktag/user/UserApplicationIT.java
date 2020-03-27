@@ -1,22 +1,21 @@
 package com.thinktag.user;
 
+import com.thinktag.user.model.User;
 import org.junit.Assert;
 import org.junit.jupiter.api.Test;
 import org.junit.runner.RunWith;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.web.server.LocalServerPort;
-import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
-import org.springframework.http.MediaType;
-import org.springframework.http.RequestEntity;
 import org.springframework.http.ResponseEntity;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.junit4.SpringRunner;
 import org.springframework.web.client.RestTemplate;
 
-import java.net.URI;
+import java.util.Arrays;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -35,47 +34,134 @@ class UserApplicationIT {
 
 
     @Test
-    public void testCreateUserCheckLogin() {
+    public void testRegisterMobile() {
+        register("071");
+    }
+
+    @Test
+    public void testContact() {
+        User user1 = register("01");
+        User user2 = register("02");
+        User user3 = register("03");
+        contact(user1.getValidationCode(), user2.getValidationCodeHash());
+        contact(user2.getValidationCode(), user3.getValidationCodeHash());
+    }
+
+    @Test
+    public void testDirectContact() {
+        User user1 = register("01");
+        User user2 = register("02");
+        User user3 = register("03");
+        contact(user1.getValidationCode(), user2.getValidationCodeHash());
+        contact(user2.getValidationCode(), user3.getValidationCodeHash());
+
+        List<User> user1Contacts = getDirectContact(user1.getValidationCode());
+        Assert.assertEquals(1, user1Contacts.size());
+        Assert.assertEquals("02", user1Contacts.get(0).getMobile());
+
+        List<User> user2Contacts = getDirectContact(user2.getValidationCode());
+        Assert.assertEquals(1, user2Contacts.size());
+        Assert.assertEquals("03", user2Contacts.get(0).getMobile());
+    }
+
+    @Test
+    public void testDirectContactRegisterBoth() {
+        User user1 = register("01");
+        User user2 = register("02");
+        contact(user1.getValidationCode(), user2.getValidationCodeHash());
+        contact(user2.getValidationCode(), user1.getValidationCodeHash());
+
+        List<User> user1Contacts = getDirectContact(user1.getValidationCode());
+        Assert.assertEquals(1, user1Contacts.size());
+        Assert.assertEquals("02", user1Contacts.get(0).getMobile());
+
+        List<User> user2Contacts = getDirectContact(user2.getValidationCode());
+        Assert.assertEquals(1, user2Contacts.size());
+        Assert.assertEquals("01", user2Contacts.get(0).getMobile());
+    }
+
+    @Test
+    public void testTraceContact() {
+        User user1 = register("01");
+        User user2 = register("02");
+        User user3 = register("03");
+        contact(user1.getValidationCode(), user2.getValidationCodeHash());
+        contact(user2.getValidationCode(), user3.getValidationCodeHash());
+
+        List<User> user1Contacts = getTraceContact(user1.getValidationCode());
+        Assert.assertEquals(2, user1Contacts.size());
+
+    }
+
+
+    @Test
+    public void testRepeatedDirectContact() {
+        User user1 = register("01");
+        User user2 = register("02");
+        contact(user1.getValidationCode(), user2.getValidationCodeHash());
+        contact(user2.getValidationCode(), user1.getValidationCodeHash());
+
+        contact(user1.getValidationCode(), user2.getValidationCodeHash());
+        contact(user2.getValidationCode(), user1.getValidationCodeHash());
+
+        List<User> user1Contacts = getDirectContact(user1.getValidationCode());
+        Assert.assertEquals(1, user1Contacts.size());
+        Assert.assertEquals("02", user1Contacts.get(0).getMobile());
+
+        List<User> user2Contacts = getDirectContact(user2.getValidationCode());
+        Assert.assertEquals(1, user2Contacts.size());
+        Assert.assertEquals("01", user2Contacts.get(0).getMobile());
+    }
+    private List<User> getTraceContact(String validationCode){
         HttpHeaders headers = new HttpHeaders();
         //headers.setAccept(Arrays.asList(MediaType.APPLICATION_JSON));
         HttpEntity<String> entity = new HttpEntity<String>("parameters", headers);
         Map<String, String> params = new HashMap<String, String>();
-        ResponseEntity<String> uuid =
-                this.restTemplate.postForEntity("http://localhost:" + port + "/public/api/register?username=John&password=pass",
+        ResponseEntity<User[]> ruser =
+                this.restTemplate.getForEntity("http://localhost:" + port + "/api/contactTrace?validationCode="+validationCode,
+                        User[].class, params);
+        Assert.assertEquals(200, ruser.getStatusCode().value());
+        return Arrays.asList(ruser.getBody());
+    }
+
+    private List<User> getDirectContact(String validationCode){
+        HttpHeaders headers = new HttpHeaders();
+        //headers.setAccept(Arrays.asList(MediaType.APPLICATION_JSON));
+        HttpEntity<String> entity = new HttpEntity<String>("parameters", headers);
+        Map<String, String> params = new HashMap<String, String>();
+        ResponseEntity<User[]> ruser =
+                this.restTemplate.getForEntity("http://localhost:" + port + "/api/directContact?validationCode="+validationCode,
+                        User[].class, params);
+        Assert.assertEquals(200, ruser.getStatusCode().value());
+        return Arrays.asList(ruser.getBody());
+    }
+
+    private void contact(String validationCode, String validationCodeHash){
+        HttpHeaders headers = new HttpHeaders();
+        //headers.setAccept(Arrays.asList(MediaType.APPLICATION_JSON));
+        HttpEntity<String> entity = new HttpEntity<String>("parameters", headers);
+        Map<String, String> params = new HashMap<String, String>();
+        ResponseEntity<User> ruser =
+                this.restTemplate.postForEntity("http://localhost:" + port + "/api/contact?validationCode="+validationCode+
+                        "&validationHash="+validationCodeHash,
                         entity,
-                        String.class, params);
-        System.out.println(uuid.toString());
+                        User.class, params);
+        Assert.assertEquals(200, ruser.getStatusCode().value());
+    }
 
-        Assert.assertEquals(200, uuid.getStatusCode().value());
 
-        ResponseEntity<String> token =
-                this.restTemplate.postForEntity("http://localhost:" + port + "/public/api/login?username=John&password=pass",
+    private User register(String mobile){
+        HttpHeaders headers = new HttpHeaders();
+        //headers.setAccept(Arrays.asList(MediaType.APPLICATION_JSON));
+        HttpEntity<String> entity = new HttpEntity<String>("parameters", headers);
+        Map<String, String> params = new HashMap<String, String>();
+        ResponseEntity<User> ruser =
+                this.restTemplate.postForEntity("http://localhost:" + port + "/api/register?mobile="+mobile,
                         entity,
-                        String.class, params);
-        System.out.println(token.toString());
-        Assert.assertEquals(200, token.getStatusCode().value());
-
-        ParameterizedTypeReference<HashMap<String, String>> responseType =
-                new ParameterizedTypeReference<HashMap<String, String>>() {
-                };
-
-        RequestEntity<Void> request = RequestEntity.post(URI.create("http://localhost:8081/api/token/validate?token=" + token.getBody()))
-                .accept(MediaType.APPLICATION_JSON).build();
-
-        ResponseEntity<HashMap<String, String>> response = restTemplate.exchange(request, responseType);
-
-        System.out.println(response.toString());
-        //{"iss":"thinktag","exp":"1578925506","iat":"1578923706","username":"John"}
-        System.out.println(response.toString());
-        Assert.assertEquals(200, response.getStatusCode().value());
-        Assert.assertTrue(response.getBody().containsKey("iss"));
-        Assert.assertTrue(response.getBody().get("iss").equals("thinktag"));
-        Assert.assertTrue(response.getBody().get("username").equals("John"));
-
-        long issuedAt = Long.parseLong(response.getBody().get("iat"));
-        long expAt = Long.parseLong(response.getBody().get("exp"));
-
-
+                        User.class, params);
+        Assert.assertEquals(200, ruser.getStatusCode().value());
+        Assert.assertEquals(mobile, ruser.getBody().getMobile());
+        return ruser.getBody();
     }
 
 }

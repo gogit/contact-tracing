@@ -22,11 +22,11 @@ public class ContactTracingController {
 
     @PostMapping("api/register")
     User register(
-            @NotNull @RequestParam("mobile") final String username)throws Exception {
-        User user =
-        new User(username,
-                username,
-                UUID.randomUUID().toString());
+            @NotNull @RequestParam("mobile") final String mobile)throws Exception {
+        User user =  new User();
+        user.setMobile(mobile);
+        user.setValidationCode(UUID.randomUUID().toString());
+        user.setValidationCodeHash(user.getHash(user.getValidationCode()));
         users.save(user);
         return user;
     }

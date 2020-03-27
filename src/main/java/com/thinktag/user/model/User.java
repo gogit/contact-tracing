@@ -5,6 +5,14 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import org.bouncycastle.util.encoders.Hex;
 
+import javax.persistence.Column;
+import javax.persistence.Entity;
+import javax.persistence.GeneratedValue;
+import javax.persistence.GenerationType;
+import javax.persistence.Id;
+import javax.persistence.JoinColumn;
+import javax.persistence.JoinTable;
+import javax.persistence.ManyToMany;
 import java.io.Serializable;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -13,34 +21,33 @@ import java.util.List;
 
 import static java.util.Objects.requireNonNull;
 
+@Entity
 public class User implements Serializable{
 
     private static final long serialVersionUID = 2396501168768746670L;
 
-    String id;
+    @Id
+    @GeneratedValue(strategy = GenerationType.AUTO)
+    @JsonIgnore
+    Long id;
+    @Column(unique=true)
     String mobile;
+    @Column(unique=true)
     String validationCode;
+    @Column(unique=true)
     String validationCodeHash;
 
+    @ManyToMany
+    @JoinTable(name="contact", joinColumns = @JoinColumn(name="id"),
+            inverseJoinColumns = @JoinColumn(name="user_id"))
     @JsonIgnore
     List<User> users = new ArrayList<>();
 
-    @JsonCreator
-    public User(@JsonProperty("id") final String id,
-         @JsonProperty("mobile") final String mobile,
-         @JsonProperty("validationCode") final String validationCode)throws Exception {
-        super();
-        this.id = requireNonNull(id);
-        this.mobile = requireNonNull(mobile);
-        this.validationCode = requireNonNull(validationCode);
-        this.validationCodeHash = getHash(validationCode);
-    }
-
-    public String getId() {
+    public Long getId() {
         return id;
     }
 
-    public void setId(String id) {
+    public void setId(Long id) {
         this.id = id;
     }
 
@@ -82,6 +89,7 @@ public class User implements Serializable{
             }
         }
     }
+
 
     public List<User> getUsers() {
         return users;

@@ -9,8 +9,6 @@ public interface UserService {
 
     User save(User user);
 
-    Optional<User> find(String id);
-
     Optional<User> findByMobile(String mobile);
 
     Optional<User> findByValidationCode(String validationCode);
